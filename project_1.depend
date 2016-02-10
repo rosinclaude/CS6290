@@ -1,11 +1,10 @@
 # depslib dependency file v1.0
-1455121624 source:/home/hunter/Documents/Gatech/CS_6290/project_01/code/project_1/cachesim.cpp
+1455122674 source:/home/hunter/Documents/Gatech/CS_6290/project_01/code/project_1/cachesim.cpp
 	"cachesim.hpp"
 	<math.h>
 	<stdlib.h>
+	<stdio.h>
 	<time.h>
-	<iostream>
-	<fstream>
 
 1454901084 /home/hunter/Documents/Gatech/CS_6290/project_01/code/project_1/cachesim.hpp
 	<stdint.h>
