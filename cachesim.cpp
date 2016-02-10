@@ -2,6 +2,9 @@
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
+#include <iostream>
+#include <fstream>
+using namespace std;
 
 // Cache declaration
 struct victim_cache_struct victim_cache;
@@ -495,7 +498,9 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
             p_stats->writes += 1;
         }
     }
-
+    // File Output.
+    ofstream outfile;
+    outfile.open("my_output.output");
 
     unsigned long int block_counter = 0;
     bool valid_l1_cache = true;
@@ -544,6 +549,8 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
         if (type == WRITE){
             l1_cache.cache_lines[index_sent_l1].blocks[block_counter].dirty_bit = 1;
         }
+        outfile << "H1****" << endl;
+        //printf("H1****\n");
     } else {
         /** First outcome: The cache line is not full (cache not valid),
             and tag is not found in l1.
@@ -564,7 +571,8 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
                     p_stats->write_misses_l1 += 1;
                 }
             }
-
+            outfile << "M1Mv";
+            //printf ("M1Mv");
             /** Searching in L2 cache */
             p_stats->accesses_l2 += 1;
             block_counter = 0;
@@ -595,11 +603,21 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
             if (tag_found_in_l2){
                 copy_tag_found_in_l2_to_l1_cache(&l1_cache, &l2_cache, index_sent_l1,
                 index_sent_l2, invalid_l1_block, block_counter, tag_sent_l1);
+                outfile << "H2" << endl;
+                //printf ("H2\n");
+                if (type == WRITE){
+                    // If write, only set dirty bit in l1, since data will be write back from l1 to l2 if it is not used.
+                    l1_cache.cache_lines[index_sent_l1].blocks[invalid_l1_block].dirty_bit = 1;
+                    /** If the teacher tell us to set the dirty bit in both, then uncomment the following line */
+                    // l2_cache.cache_lines[index_sent_l2].blocks[invalid_l2_block].dirty_bit = 1;
+                }
             }
 
             /** 2- The tag is not found in l2, and the l2 cache is not full.
                 L1 and  L2 cache are not full yet. There are invalid place in both */
             if ((not tag_found_in_l2) and (not valid_l2_cache)){
+                outfile << "M1MvM2" << endl;
+                //printf ("M1MvM2\n");
                 // Read data from ram and place it in l2 cache
                 read_ram_set_elements_in_cache(&l2_cache, index_sent_l2,
                 invalid_l2_block, tag_sent_l2);
@@ -623,6 +641,8 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
             /** 3- The tag is not found in l2 and the l2 cache is full (l1 still have some place left),
             every valid bit is set. Search for the LRU and replace it LRU is given by the l2_LRU_block_index */
             if ((not tag_found_in_l2) and (valid_l2_cache)){
+                outfile << "M1MvM2" << endl;
+                //printf("M1MvM2\n");
                 // Setting the LRU value
                 set_Least_Recently_used_index(&l2_cache, index_sent_l2, &l2_LRU_block_index);
                 // Updating stats if the LRU has the dirty bit set.
@@ -650,6 +670,8 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
             }
 
         } else {
+            outfile << "M1";
+            //printf ("M1");
             /** l1 cache is full, we should search for the tag in the victim cache first */
             if ((not tag_found_in_l1) and (valid_l1_cache)){
                 // Setting stats
@@ -679,6 +701,8 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
                      &block_counter, &tag_found_in_vc, victim_cache_tag_sent);
 
                     if (tag_found_in_vc) {
+                        outfile << "Hv**" << endl;
+                        //printf("Hv**\n");
                      /** The tag is found in the victim cache. We should search for the LRU in the l1 cache  and replace it.
                          The l1 LRU is already known. */
                         // Updating stats
@@ -700,6 +724,13 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
                             exchange_vc_and_l1c_els(type, &victim_cache, block_counter,
                             &l1_cache, index_sent_l1, l1_LRU_block_index, l1_cache_mask, tag_sent_l1);
                         }
+                        // Set dirty in l1 lru if write
+                        if (type == WRITE){
+                            // If write, only set dirty bit in l1, since data will be write back from l1 to l2 if it is not used.
+                            l1_cache.cache_lines[index_sent_l1].blocks[l1_LRU_block_index].dirty_bit = 1;
+                            /** If the teacher tell us to set the dirty bit in both, then uncomment the following line */
+                            // l2_cache.cache_lines[index_sent_l2].blocks[invalid_l2_block].dirty_bit = 1;
+                        }
                     }
                 }
                  /** Tag neither found in victim cache nor in l1. Searching in l2.
@@ -707,6 +738,13 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
                 if (not tag_found_in_vc){
                     // Updating Stats
                     p_stats->accesses_l2 += 1;
+                    if (victim_cache.nb_victim_cache_lines > 0){
+                        outfile << "Mv";
+                        //printf("Mv");
+                    } else {
+                        outfile << "**";
+                        //printf("**");
+                    }
 
                     /** Searching in L2 cache */
                     block_counter = 0;
@@ -725,14 +763,25 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
                     tag_sent_l2);
 
                     if (tag_found_in_l2){
+                        outfile << "H2" << endl;
+                        //printf("H2\n");
                         write_back_l1_move_to_vc_copy_tag_found_in_l2(&l1_cache, &l2_cache, &victim_cache,
                         l1_cache_mask, l2_cache_mask, &l1_LRU_block_index, index_sent_l1, index_sent_l2,
                         tag_found_in_l2, &l2_LRU_block_index, p_stats, block_counter,
                         &victim_cache_writable_index, tag_sent_l1);
+                        // set dirty bit in l1
+                        if (type == WRITE){
+                            // If write, only set dirty bit in l1, since data will be write back from l1 to l2 if it is not used.
+                            l1_cache.cache_lines[index_sent_l1].blocks[l1_LRU_block_index].dirty_bit = 1;
+                            /** If the teacher tell us to set the dirty bit in both, then uncomment the following line */
+                            // l2_cache.cache_lines[index_sent_l2].blocks[invalid_l2_block].dirty_bit = 1;
+                        }
                     }
 
                     // 2- The tag is not found, and the l2 cache is not full.
                     if (not tag_found_in_l2){
+                        outfile << "M2" << endl;
+                        //printf("M2\n");
                         // if the l2 cache is not valid (valid_l2_cache = False), we will be looking for an empty space in l2 to create data.
                         // If there is no empty space left (last empty space used by the write back),
                         // we will be using the LRU
@@ -788,7 +837,7 @@ void cache_access(char type, uint64_t arg, cache_stats_t* p_stats) {
                             if (type == WRITE){
                                 p_stats->write_misses_l2 += 1;
                                 // If write, only set dirty bit in l1, since data will be write back from l1 to l2 if it is not used.
-                                l1_cache.cache_lines[index_sent_l1].blocks[invalid_l1_block].dirty_bit = 1;
+                                l1_cache.cache_lines[index_sent_l1].blocks[l1_LRU_block_index].dirty_bit = 1;
                                 /** If the teacher tell us to set the dirty bit in both, then uncomment the following line */
                                 // l2_cache.cache_lines[index_sent_l2].blocks[invalid_l2_block].dirty_bit = 1;
                             }
