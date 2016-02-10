@@ -1,0 +1,23 @@
+# depslib dependency file v1.0
+1455065742 source:/home/hunter/Documents/Gatech/CS_6290/project_01/code/project_1/cachesim.cpp
+	"cachesim.hpp"
+	<math.h>
+	<stdlib.h>
+	<time.h>
+
+1454901084 /home/hunter/Documents/Gatech/CS_6290/project_01/code/project_1/cachesim.hpp
+	<stdint.h>
+	<cstdint>
+
+1454813812 source:/home/hunter/Documents/Gatech/CS_6290/project_01/code/project_1/main.cpp
+	<stdio.h>
+	<inttypes.h>
+	<stdlib.h>
+	<string.h>
+	<cstdio>
+	<cinttypes>
+	<cstdlib>
+	<cstring>
+	<unistd.h>
+	"cachesim.hpp"
+
